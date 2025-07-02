@@ -3,7 +3,13 @@ import re
 from urllib.parse import urlencode
 from lxml import html
 import requests
+import random
+import string
+import time
 from core.base_engine import BaseEngine
+from proxy_utils import get_proxy_config
+
+proxies = get_proxy_config(enabled=True)
 
 class GoogleEngine(BaseEngine):
     def __init__(self):
@@ -16,6 +22,27 @@ class GoogleEngine(BaseEngine):
             "US": "www.google.com",
             "CN": "www.google.com.hk",
         }
+        self._arcid_random = None
+        self._arcid_range = string.ascii_letters + string.digits + "_-"
+
+    def ui_async(self, start: int) -> str:
+        """Format of the response from UI's async request.
+
+        - ``arc_id:<...>,use_ac:true,_fmt:prog``
+
+        The arc_id is random generated every hour.
+        """
+        use_ac = "use_ac:true"
+        # _fmt:html returns a HTTP 500 when user search for celebrities like
+        # '!google natasha allegri' or '!google chris evans'
+        _fmt = "_fmt:prog"
+
+        # create a new random arc_id every hour
+        if not self._arcid_random or (int(time.time()) - self._arcid_random[1]) > 3600:
+            self._arcid_random = (''.join(random.choices(self._arcid_range, k=23)), int(time.time()))
+        arc_id = f"arc_id:srp_{self._arcid_random[0]}_1{start:02}"
+
+        return ",".join([arc_id, use_ac, _fmt])
 
     def detect_google_sorry(self, response):
         if "sorry.google.com" in response.url or "/sorry" in response.url:
@@ -40,12 +67,14 @@ class GoogleEngine(BaseEngine):
         try:
             google_info = self.get_google_info(locale, country)
             offset = (page - 1) * 10
+            str_async = self.ui_async(offset)
             params = {
                 "q": query,
+                **google_info["params"],
+                'filter': '0',
                 "start": offset,
                 "asearch": "arc",
-                "async": "use_ac:true,_fmt:prog",
-                **google_info["params"],
+                "async": str_async,
             }
 
             time_range_dict = {"day": "d", "week": "w", "month": "m", "year": "y"}
@@ -60,7 +89,8 @@ class GoogleEngine(BaseEngine):
                 url,
                 headers=google_info["headers"],
                 cookies=google_info["cookies"],
-                timeout=timeout
+                timeout=timeout,
+                proxies=proxies
             )
             response.raise_for_status()
             self.detect_google_sorry(response)

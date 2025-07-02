@@ -4,6 +4,9 @@ from urllib.parse import urlencode
 from lxml import html
 import requests
 from core.base_engine import BaseEngine
+from proxy_utils import get_proxy_config
+
+proxies = get_proxy_config(enabled=True)
 
 class BingEngine(BaseEngine):
     def __init__(self):
@@ -57,7 +60,8 @@ class BingEngine(BaseEngine):
                 url,
                 headers=bing_info["headers"],
                 cookies=bing_info["cookies"],
-                timeout=timeout
+                timeout=timeout,
+                proxies=proxies
             )
 
             response.raise_for_status()
