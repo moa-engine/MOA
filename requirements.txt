@@ -1,3 +1,5 @@
 lxml
 requests
 python-dateutil
+fastapi
+uvicorn

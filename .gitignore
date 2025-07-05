@@ -1,1 +1,4 @@
 venv/
+__pycache__/
+core/__pycache__/
+engines/__pycache__/

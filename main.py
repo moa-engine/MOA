@@ -3,20 +3,28 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from core.engine_loader import EngineLoader
 import logging
+from fastapi import FastAPI, Query
+from typing import Optional
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def main():
-    parser = argparse.ArgumentParser(description="SearXNG-Like Multi-Engine Search")
-    parser.add_argument("query", type=str, help="Search query")
-    parser.add_argument("-e", "--engines", nargs="+", help="List of engines (default: all)")
-    parser.add_argument("-p", "--page", type=int, default=1, help="Page number")
-    parser.add_argument("-s", "--safesearch", type=int, choices=[0, 1, 2], default=0, help="Safe search level")
-    parser.add_argument("-t", "--time_range", choices=["day", "week", "month", "year"], help="Time range filter")
-#    parser.add_argument("-n", "--num_results", type=int, default=10, help="Number of results per engine")
-    
-    args = parser.parse_args()
+app = FastAPI()
+@app.get("/search")
+
+def search(
+    q: Optional[str] = Query(None, description="Search query"),
+    engine: Optional[str] = Query(None, description="search engine names default = all"),
+    time_range: Optional[str] = Query(None, description="Time range filter"),
+#    lang: Optional[str] = Query(None, description="search language "),
+#    size: Optional[int] = Query(None, description="Number of results per engine default all results"),
+    page: int = Query(1, description="Page number"),
+    safesearch: int = Query(0, description="Safe search level")
+    ):
+
     
     loader = EngineLoader()
     engine_status = loader.list_engines()
@@ -24,7 +32,7 @@ def main():
     logger.info("Active Engines: %s", engine_status["active"])
     logger.warning("Failed Engines: %s", engine_status["failed"])
     
-    selected_engines = args.engines if args.engines else engine_status["active"]
+    selected_engines = engine if engine else engine_status["active"]
     
     results = {}
     with ThreadPoolExecutor() as executor:
@@ -36,11 +44,11 @@ def main():
                 continue
             
             search_params = {
-                "query": args.query,
-                "page": args.page,
-                "safesearch": args.safesearch,
-                "time_range": args.time_range,
- #               "num_results": args.num_results,
+                "query": q,
+                "page": page,
+                "safesearch": safesearch,
+                "time_range": time_range,
+ #               "num_results": size,
             }
             
             futures[executor.submit(engine.search, **search_params)] = engine_name
@@ -53,7 +61,15 @@ def main():
                 results[engine_name] = {"error": str(e)}
                 logger.error("Engine %s failed: %s", engine_name, str(e))
     
-    print(json.dumps(results, indent=2))
+    return(json.dumps(results, indent=2))
 
-if __name__ == "__main__":
-    main()
+
+
+# Mount static folder
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Add route for favicon.ico
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse("static/favicon.ico")
+
