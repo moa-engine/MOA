@@ -5,7 +5,7 @@ from core.base_engine import BaseEngine
 from dateutil import parser
 from proxy_utils import get_proxy_config
 
-proxies = get_proxy_config(enabled=True)
+proxies = get_proxy_config()
 
 class BraveEngine(BaseEngine):
     def __init__(self):
@@ -97,7 +97,8 @@ class BraveEngine(BaseEngine):
     def search(self, query: str, timeout: int = 10, page: int = 1,
                 category: str = 'search', time_range: str = None,
                 safesearch: int = 0, locale: str = 'en-US',
-                country: str = 'US') -> dict:
+                country: str = 'US',
+                **kwargs) -> dict:
         
         try:
             config = self._get_brave_config(category, locale, country)

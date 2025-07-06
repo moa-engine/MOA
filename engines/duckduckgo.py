@@ -6,7 +6,7 @@ from lxml import html
 from proxy_utils import get_proxy_config
 
 
-proxies = get_proxy_config(enabled=True)
+proxies = get_proxy_config()
 
 class DuckDuckGoEngine(BaseEngine):
 

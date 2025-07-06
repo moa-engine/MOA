@@ -6,7 +6,7 @@ import requests
 from core.base_engine import BaseEngine
 from proxy_utils import get_proxy_config
 
-proxies = get_proxy_config(enabled=True)
+proxies = get_proxy_config()
 
 class BingEngine(BaseEngine):
     def __init__(self):
@@ -38,7 +38,7 @@ class BingEngine(BaseEngine):
             "cookies": {"CONSENT": "YES+"},
         }
 
-    def search(self, query: str, timeout: int = 10, page: int = 1, time_range: str = None, safesearch: int = 0, locale="en-US", country="US") -> dict:
+    def search(self, query: str, timeout: int = 10, page: int = 1, time_range: str = None, safesearch: int = 0, locale="en-US", country="US", **kwargs) -> dict:
         try:
             bing_info = self.get_bing_info(locale, country)
             offset = (page - 1) * 10
