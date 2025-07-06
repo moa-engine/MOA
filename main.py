@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
+# Loading the engines
 loader = EngineLoader()
 engine_status = loader.list_engines()
 
@@ -34,7 +34,7 @@ def search(
     if q == None:
         return "Search query input cannot be empty."
 
-    selected_engines = engine if engine else engine_status["active"]
+    selected_engines = engine if engine else engine_status["active"] # Using active engines in the absence of engine input
 
     results = {}
     with ThreadPoolExecutor() as executor:
