@@ -3,14 +3,16 @@
         "params": {
             "max_page": 50,
             "timeout": 10,
-            "region": "US"
+            "region": "US",
+            "type": "general"
         }
     },
     "BingEngine": {
         "params": {
             "max_page": 200,
             "timeout": 15,
-            "region": "en-US"
+            "region": "en-US",
+            "type": "general"
         }
     },
     "BraveEngine": {
@@ -19,7 +21,8 @@
             "safesearch": 0,
             "locale": "en-US",
             "country": "US",
-            "category": "search"
+            "category": "search",
+            "type": "general"
         }
     }
 }

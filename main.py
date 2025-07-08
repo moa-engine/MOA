@@ -16,8 +16,10 @@ loader = EngineLoader()
 engine_status = loader.list_engines()
 plugin_status = ploader.list_plugins()
 
-logger.info("Active Engines: %s", engine_status["active"])
-logger.warning("Failed Engines: %s", engine_status["failed"])
+for types in engine_status:
+    logger.info(f"{types} Engines: %s", engine_status[types])
+# logger.info("Active Engines: %s", engine_status["active"])
+# logger.warning("Failed Engines: %s", engine_status["failed"])
 
 logger.info("Active Plugins: %s", plugin_status["active"])
 logger.warning("Failed Plugins: %s", plugin_status["failed"])
@@ -36,13 +38,29 @@ def search(
     page: int = Query(1, description="Page number"),
     safesearch: int = Query(0, description="Safe search level"),
     country: str = Query("", description="Country to search"),
-#    category: str = Query("", description="")
+    category: str = Query("general", description="")
     ):
 
     if q == None:
         return "Search query input cannot be empty."
 
-    selected_engines = engine if engine else engine_status["active"] # Using active engines in the absence of engine input
+    # selected_engines = engine if engine else engine_status["general"] # Using active engines in the absence of engine input
+
+    category = category.lower() if category else "general"
+    if category not in engine_status:
+        category = "general"
+
+    if engine:
+        if category in engine_status:
+            invalid_engines = [e for e in engine if e not in engine_status[category]]
+            if invalid_engines:
+                return {
+                    "error": f"Engine(s) {invalid_engines} not found in category '{category}'"
+                }
+        selected_engines = engine
+    else:
+        # اگه انجینی داده نشده، از دسته بندی استفاده کن
+        selected_engines = engine_status[category]
 
     selected_pre_plugins = []
     selected_post_plugins = []
@@ -83,9 +101,7 @@ def search(
                 "time_range": time_range,
                 "num_results": size, # For engines that can return a certain number of results by default
                 "locale": lang,
-                "country": country,
-#                "category": category
-
+                "country": country
             }
             
             futures[executor.submit(engine_instance.search, **search_params)] = ("engine", engine_name)

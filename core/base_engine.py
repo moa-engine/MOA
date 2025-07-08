@@ -22,3 +22,7 @@ class BaseEngine(ABC):
     
     def get_params(self) -> dict:
         return self.config.get("params", {})
+
+    def get_type(self) -> str:
+
+        return self.config.get("type", "general")
