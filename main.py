@@ -59,7 +59,7 @@ def search(
                 }
         selected_engines = engine
     else:
-        # اگه انجینی داده نشده، از دسته بندی استفاده کن
+        # If no engine is given, use category
         selected_engines = engine_status[category]
 
     selected_pre_plugins = []
