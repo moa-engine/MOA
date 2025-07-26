@@ -34,15 +34,15 @@ app = FastAPI()
 
 async def search(
     q: Optional[str] = Query(None, description="Search query"),
-    engine: Optional[list[str]] = Query(None, description="search engine names default = all"),
-    plugin: Optional[list[str]] = Query(None, description="search engine names default = all"),
+    engines: Optional[list[str]] = Query(None, description="search engine names default = all"),
+    enabled_plugins: Optional[list[str]] = Query(None, description="plugin names default = all"),
     time_range: Optional[str] = Query("", description="Time range filter"),
-    lang: Optional[str] = Query("", description="search language "),
-    size: Optional[int] = Query(None, description="Number of results per engine default all results"),
-    page: int = Query(1, description="Page number"),
+    language: Optional[str] = Query("", description="search language "),
+    limit: Optional[int] = Query(None, description="Number of results per engine default all results"),
+    pageno: int = Query(1, description="pageno number"),
     safesearch: int = Query(0, description="Safe search level"),
     country: str = Query("", description="Country to search"),
-    category: str = Query("general", description=""),
+    categories: str = Query("general", description=""),
     api_mode: str = Query("normal", description="API behavior. stream or normal"),
     ):
     # Send error if input query is missing
@@ -50,28 +50,28 @@ async def search(
         raise HTTPException(status_code=400, detail="Search query input cannot be empty.")
 
 
-    category = category.lower() if category else "general"
-    if category not in engine_status:
-        category = "general"
+    categories = categories.lower() if categories else "general"
+    if categories not in engine_status:
+        categories = "general"
 
-    if engine:
-        if category in engine_status:
-            invalid_engines = [e for e in engine if e not in engine_status[category]]
+    if engines:
+        if categories in engine_status:
+            invalid_engines = [e for e in engines if e not in engine_status[categories]]
             if invalid_engines:
                 return {
-                    "error": f"Engine(s) {invalid_engines} not found in category '{category}'"
+                    "error": f"Engine(s) {invalid_engines} not found in category '{categories}'"
                 }
-        selected_engines = engine
+        selected_engines = engines
     else:
         # If no engine is given, use category
-        selected_engines = engine_status[category]
+        selected_engines = engine_status[categories]
 
     # Determining and validating pre and post plugins
     selected_pre_plugins = []
     selected_post_plugins = []
 
-    if plugin:
-        for plugin_name in plugin:
+    if enabled_plugins:
+        for plugin_name in enabled_plugins:
             plugin_instance = ploader.get_plugin(plugin_name)
             if not plugin_instance:
                 logger.warning("Plugin '%s' not found or failed to load.", plugin_name)
@@ -91,11 +91,11 @@ async def search(
     # Creating search parameters
     search_params = {
         "query": q,
-        "page": page,
+        "page": pageno,
         "safesearch": safesearch,
         "time_range": time_range,
-        "num_results": size, # For engines that can return a certain number of results by default
-        "locale": lang,
+        "num_results": limit, # For engines that can return a certain number of results by default
+        "locale": language,
         "country": country
     }
 
@@ -123,8 +123,8 @@ async def search(
                 try:
                     output = future.result()
                     if ftype == "engine":
-                        if size and isinstance(output, dict) and "results" in output and isinstance(output["results"], list):
-                            output["results"] = output["results"][:size]
+                        if limit and isinstance(output, dict) and "results" in output and isinstance(output["results"], list):
+                            output["results"] = output["results"][:limit]
                         results[name] = output
                     elif ftype == "pre_plugin":
                         pre_plugin_outputs[name] = output
@@ -140,9 +140,8 @@ async def search(
             "pre_plugins": pre_plugin_outputs
         }
 
-    """
-    In streaming API mode, the results of engines and pre-plugins are executed in parallel and sent separately to the client without delay.
-    """
+
+    # In streaming API mode, the results of engines and pre-plugins are executed in parallel and sent separately to the client without delay.
     elif api_mode == "stream":
         async def event_stream():
             queue = asyncio.Queue()
@@ -160,8 +159,8 @@ async def search(
                         try:
                             result = await asyncio.to_thread(
                                 instance.search, **search_params)
-                            if size and isinstance(result, dict) and "results" in result:
-                                result["results"] = result["results"][:size]
+                            if limit and isinstance(result, dict) and "results" in result:
+                                result["results"] = result["results"][:limit]
                             await queue.put({"type": "engine_result", "name": name, "result": result})
                         except Exception as e:
                             await queue.put({"type": "engine_result", "name": name, "error": str(e)})
