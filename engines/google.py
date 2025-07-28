@@ -7,9 +7,7 @@ import random
 import string
 import time
 from core.base_engine import BaseEngine
-from proxy_utils import get_proxy_config
 
-proxies = get_proxy_config()
 
 class GoogleEngine(BaseEngine):
     def __init__(self):
@@ -63,7 +61,7 @@ class GoogleEngine(BaseEngine):
             "cookies": {"CONSENT": "YES+"},
         }
 
-    def search(self, query: str,timeout: int = 10 , page: int = 1, time_range: str = None, safesearch: int = 0, locale="en-US", country="US", **kwargs) -> dict:
+    def search(self, query: str, proxy, timeout: int = 10 , page: int = 1, time_range: str = None, safesearch: int = 0, locale="en-US", country="US", **kwargs) -> dict:
         try:
             google_info = self.get_google_info(locale, country)
             offset = (page - 1) * 10
@@ -90,7 +88,7 @@ class GoogleEngine(BaseEngine):
                 headers=google_info["headers"],
                 cookies=google_info["cookies"],
                 timeout=timeout,
-                proxies=proxies
+                proxies=proxy
             )
             response.raise_for_status()
             self.detect_google_sorry(response)

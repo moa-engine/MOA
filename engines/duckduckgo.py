@@ -3,10 +3,7 @@ import requests
 import re
 from urllib.parse import urlencode, quote_plus
 from lxml import html
-from proxy_utils import get_proxy_config
 
-
-proxies = get_proxy_config()
 
 class DuckDuckGoEngine(BaseEngine):
 
@@ -15,7 +12,7 @@ class DuckDuckGoEngine(BaseEngine):
         self.time_range_dict = {'day': 'd', 'week': 'w', 'month': 'm', 'year': 'y'}
         self.base_url = "https://html.duckduckgo.com/html"
 
-    def search(self, query: str,timeout: int = 10 , page: int = 1, time_range: str = None, safesearch: int = 0, **kwargs) -> dict:
+    def search(self, query: str, proxy, timeout: int = 10 , page: int = 1, time_range: str = None, safesearch: int = 0, **kwargs) -> dict:
         params = {
             "page": page,
             "safesearch": safesearch,
@@ -40,7 +37,7 @@ class DuckDuckGoEngine(BaseEngine):
                 data=data,
                 headers={"User-Agent": "Mozilla/5.0"},
                 timeout=self.config.get("timeout", timeout),
-                proxies=proxies
+                proxies=proxy
             )
             response.raise_for_status()
 

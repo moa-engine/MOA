@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-import json
+import yaml
 from pathlib import Path
 
 class BasePlugin(ABC):
@@ -9,10 +9,11 @@ class BasePlugin(ABC):
 
     @classmethod
     def load_config(cls):
-        config_path = Path(__file__).parent.parent / "configs" / "plugin_params.json"
+        config_path = Path(__file__).parent.parent / "configs" / "plugin_params.yml"
         try:
             with open(config_path, "r") as f:
-                return json.load(f).get(cls.__name__, {})
+                return yaml.safe_load(f).get(cls.__name__, {})
+
         except FileNotFoundError:
             return {}
 

@@ -1,0 +1,22 @@
+GoogleEngine:
+  params:
+    max_page: 50
+    timeout: 10
+    region: "US"
+    type: "general"
+
+BingEngine:
+  params:
+    max_page: 200
+    timeout: 15
+    region: "en-US"
+    type: "general"
+
+BraveEngine:
+  params:
+    max_page: 20
+    safesearch: 0
+    locale: "en-US"
+    country: "US"
+    category: "search"
+    type: "general"

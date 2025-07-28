@@ -1,0 +1,59 @@
+# ==============================
+# Default API parameters. (User input values override these values)
+# ==============================
+
+# Active engines. Default for all engines. It is given as a list. For example: [engine1, engine2] or null for all engines
+active_engines: null
+
+# Active plugins. By default, all plugins are active. For example: [plugin1, pligin2] or null for all plugins
+active_plugins: null
+
+# The maximum number of results for each engine in non-combined results mode and the maximum number of all results in combined results mode.
+# None means no restrictions. The value must be numeric.
+limit: null
+
+# Language filtering for engines is not supported in all engines.
+language: ""
+
+# Search results page number
+pageno: 1
+
+# Explicit results filter, values can be 0, 1, or 2, which means off, moderate, and on, respectively.
+safesearch: 0
+
+# Country filter
+country: ""
+
+# The default category for which results are requested.
+default_category: "general"
+
+# The API output type can be "normal" or "stream".
+# In normal mode, the results are sent all at once, but in stream mode, whichever engine responds faster will have its results returned immediately.
+api_mode: "normal"
+
+
+# ==============================
+# Other settings
+# ==============================
+
+logging_level: "INFO"  # or DEBUG, WARNING, ERROR
+
+# max_threads determines how many threads are running at the same time when searching.
+# These threads are used to run search engines and plugins simultaneously.
+# If the value is too low, searches will be blocked.
+# If the value is too high, server resources may be overused.
+#Recommendation:
+# - For lightweight servers: 4 to 8
+# - For powerful servers (e.g. with 8+ cores): 10 to 20
+# - If you have more than 5 search engines and several plugins, a value of 10 is appropriate.
+max_threads: 10
+
+#Enable this option if you don't know what the appropriate value is. If it can't calculate the correct value, it will use the max_threads.
+auto_max_threads: True
+
+# Enable or disable proxy, if enabled, set the values in the following variable. Proxies will be used for all supported engines.
+enabled_proxy: False
+proxys:
+  http: ""
+  https: ""
+

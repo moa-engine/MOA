@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from core.engine_loader import EngineLoader
 from core.plugin_loader import PluginLoader
+from core.config_loader import load_config
 import logging
 from fastapi import FastAPI, Query
 from typing import Optional
@@ -9,10 +10,23 @@ from fastapi.staticfiles import StaticFiles
 import asyncio
 import json
 from fastapi import HTTPException
+import os
+
+# Load settings from configs/config.yml
+configs = load_config()
+print(configs)
+log_level_str = configs.get("logging_level", "INFO").upper()
+logging_level = getattr(logging, log_level_str, logging.INFO)
 
 # Start logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging_level)
 logger = logging.getLogger(__name__)
+
+# Determine the value of max_threads for ThreadPoolExecutor
+if configs["auto_max_threads"]:
+    max_threads = min(32, (os.cpu_count() or 4) * 2)
+else:
+    max_threads = configs["max_threads"]
 
 # Loading the engines and plugins
 ploader = PluginLoader()
@@ -29,21 +43,51 @@ logger.info("Active Plugins: %s", plugin_status["active"])
 logger.warning("Failed Plugins: %s", plugin_status["failed"])
 
 
+def get_proxy_config(proxy: dict) -> dict:
+    """
+    Converts proxy configuration from YAML into a format usable by the 'requests' library.
+    Example input:
+        {
+            "http": "http://127.0.0.1:8080",
+            "https": "http://127.0.0.1:8080"
+        }
+    """
+    if not isinstance(proxy, dict):
+        raise TypeError("Proxy config must be a dictionary.")
+
+    output_proxy = {}
+
+    for key in ("http", "https"):
+        value = proxy.get(key)
+        if value:
+            if not (value.startswith("http://") or value.startswith("https://")):
+                raise ValueError(f"{key} proxy must start with http:// or https://")
+            output_proxy[key] = value
+
+    return output_proxy if output_proxy else None
+
+
+if configs["enabled_proxy"]:
+    proxy = get_proxy_config(configs["proxys"])
+else:
+    proxy = {}
+
+
 app = FastAPI()
 @app.get("/search")
 
 async def search(
     q: Optional[str] = Query(None, description="Search query"),
-    engines: Optional[list[str]] = Query(None, description="search engine names default = all"),
-    enabled_plugins: Optional[list[str]] = Query(None, description="plugin names default = all"),
+    engines: Optional[list[str]] = Query(configs["active_engines"], description="search engine names default = all"),
+    enabled_plugins: Optional[list[str]] = Query(configs["active_plugins"], description="plugin names default = all"),
     time_range: Optional[str] = Query("", description="Time range filter"),
-    language: Optional[str] = Query("", description="search language "),
-    limit: Optional[int] = Query(None, description="Number of results per engine default all results"),
-    pageno: int = Query(1, description="pageno number"),
-    safesearch: int = Query(0, description="Safe search level"),
-    country: str = Query("", description="Country to search"),
-    categories: str = Query("general", description=""),
-    api_mode: str = Query("normal", description="API behavior. stream or normal"),
+    language: Optional[str] = Query(configs["language"], description="search language "),
+    limit: Optional[int] = Query(configs["limit"], description="Number of results per engine default all results"),
+    pageno: int = Query(configs["pageno"], description="pageno number"),
+    safesearch: int = Query(configs["safesearch"], description="Safe search level"),
+    country: str = Query(configs["country"], description="Country to search"),
+    categories: str = Query(configs["default_category"], description="# The default category for which results are requested."),
+    api_mode: str = Query(configs["api_mode"], description="API behavior. stream or normal"),
     ):
     # Send error if input query is missing
     if not q:
@@ -96,7 +140,8 @@ async def search(
         "time_range": time_range,
         "num_results": limit, # For engines that can return a certain number of results by default
         "locale": language,
-        "country": country
+        "country": country,
+        "proxy": proxy
     }
 
     # Normal api mode takes all results from all engines. Then sends them all at once.
@@ -105,7 +150,7 @@ async def search(
         results = {}
         pre_plugin_outputs = {} # Pre plugins also work in parallel with engines.
 
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_threads) as executor:
             futures = {}
             for engine_name in selected_engines:
                 engine_instance = loader.get_engine(engine_name)
