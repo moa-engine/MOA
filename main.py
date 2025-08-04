@@ -1,20 +1,22 @@
-from concurrent.futures import ThreadPoolExecutor
 from core.engine_loader import EngineLoader
 from core.plugin_loader import PluginLoader
 from core.config_loader import load_config
-import logging
-from fastapi import FastAPI, Query
-from typing import Optional
-from fastapi.responses import FileResponse, StreamingResponse
+from core.search_modes.normal import normal_search
+from core.search_modes.stream import stream_search
+from core.search_modes.results_merger import results_merger
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from typing import Optional
+import logging
 import asyncio
 import json
-from fastapi import HTTPException
 import os
+
 
 # Load settings from configs/config.yml
 configs = load_config()
-print(configs)
+
 log_level_str = configs.get("logging_level", "INFO").upper()
 logging_level = getattr(logging, log_level_str, logging.INFO)
 
@@ -146,106 +148,48 @@ async def search(
 
     # Normal api mode takes all results from all engines. Then sends them all at once.
     if api_mode == "normal":
-
-        results = {}
-        pre_plugin_outputs = {} # Pre plugins also work in parallel with engines.
-
-        with ThreadPoolExecutor(max_threads) as executor:
-            futures = {}
-            for engine_name in selected_engines:
-                engine_instance = loader.get_engine(engine_name)
-                if not engine_instance:
-                    logger.error("Engine %s not found!", engine_name)
-                    continue
-
-                futures[executor.submit(engine_instance.search, **search_params)] = ("engine", engine_name)
-
-            for plugin in selected_pre_plugins:
-                futures[executor.submit(plugin.run, q)] = ("pre_plugin", plugin.__class__.__name__)
-
-            for future in futures:
-                ftype, name = futures[future]
-                try:
-                    output = future.result()
-                    if ftype == "engine":
-                        if limit and isinstance(output, dict) and "results" in output and isinstance(output["results"], list):
-                            output["results"] = output["results"][:limit]
-                        results[name] = output
-                    elif ftype == "pre_plugin":
-                        pre_plugin_outputs[name] = output
-                except Exception as e:
-                    logger.error("%s %s failed: %s", ftype.capitalize(), name, str(e))
-                    if ftype == "engine":
-                        results[name] = {"error": str(e)}
-                    elif ftype == "pre_plugin":
-                        pre_plugin_outputs[name] = {"error": str(e)}
-
+        results, pre_plugin_outputs = normal_search(
+            max_threads=max_threads,
+            selected_engines=selected_engines,
+            loader=loader,
+            logger=logger,
+            search_params=search_params,
+            selected_pre_plugins=selected_pre_plugins,
+            q=q,
+            limit=limit,)
         return {
             "results": results,
             "pre_plugins": pre_plugin_outputs
-        }
+            }
 
 
     # In streaming API mode, the results of engines and pre-plugins are executed in parallel and sent separately to the client without delay.
     elif api_mode == "stream":
-        async def event_stream():
-            queue = asyncio.Queue()
+        return await stream_search(
+            selected_engines=selected_engines,
+            loader=loader,
+            search_params=search_params,
+            limit=limit,
+            selected_pre_plugins=selected_pre_plugins,
+            selected_post_plugins=selected_post_plugins,
+            q=q,
+        )
 
-            async def run_tasks():
-                tasks = []
-
-                for eng_name in selected_engines:
-                    engine_instance = loader.get_engine(eng_name)
-                    if not engine_instance:
-                        await queue.put({"type": "engine_result", "name": eng_name, "error": "Engine not found"})
-                        continue
-
-                    async def run_engine(name, instance):
-                        try:
-                            result = await asyncio.to_thread(
-                                instance.search, **search_params)
-                            if limit and isinstance(result, dict) and "results" in result:
-                                result["results"] = result["results"][:limit]
-                            await queue.put({"type": "engine_result", "name": name, "result": result})
-                        except Exception as e:
-                            await queue.put({"type": "engine_result", "name": name, "error": str(e)})
-
-                    tasks.append(run_engine(eng_name, engine_instance))
-
-                for pre_plugin in selected_pre_plugins:
-                    plugin_name = pre_plugin.__class__.__name__
-
-                    async def run_pre_plugin(instance, name):
-                        try:
-                            result = await asyncio.to_thread(instance.run, q)
-                            await queue.put({"type": "pre_plugin_result", "name": name, "result": result})
-                        except Exception as e:
-                            await queue.put({"type": "pre_plugin_result", "name": name, "error": str(e)})
-
-                    tasks.append(run_pre_plugin(pre_plugin, plugin_name))
-
-                await asyncio.gather(*tasks)
-
-                for post_plugin in selected_post_plugins:
-                    plugin_name = post_plugin.__class__.__name__
-                    try:
-                        result = await asyncio.to_thread(post_plugin.run, q)
-                        await queue.put({"type": "post_plugin_result", "name": plugin_name, "result": result})
-                    except Exception as e:
-                        await queue.put({"type": "post_plugin_result", "name": plugin_name, "error": str(e)})
-
-                await queue.put({"type": "done", "data": "[DONE]"})
-
-            asyncio.create_task(run_tasks())
-
-            while True:
-                data = await queue.get()
-                if data.get("type") == "done":
-                    yield json.dumps(data).encode() + b"\n"
-                    break
-                yield json.dumps(data).encode() + b"\n"
-
-        return StreamingResponse(event_stream(), media_type="application/json")
+    elif api_mode == "merged":
+        results, pre_plugin_outputs = normal_search(
+            max_threads=max_threads,
+            selected_engines=selected_engines,
+            loader=loader,
+            logger=logger,
+            search_params=search_params,
+            selected_pre_plugins=selected_pre_plugins,
+            q=q,
+            limit=limit,)
+        results = results_merger(results)
+        return {
+            "results": results,
+            "pre_plugins": pre_plugin_outputs
+            }
 
     else:
         return "api_mode should be normal or stream."
@@ -258,3 +202,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def favicon():
     return FileResponse("static/favicon.ico")
 
+@app.get("/")
+async def root():
+    return JSONResponse({
+        "message": "Welcome to MOA search API. Use /search endpoint with appropriate parameters."
+    })
