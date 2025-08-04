@@ -27,9 +27,9 @@ country: ""
 # The default category for which results are requested.
 default_category: "general"
 
-# The API output type can be "normal" or "stream".
+# The API output type can be "normal", "stream" or "merged".
 # In normal mode, the results are sent all at once, but in stream mode, whichever engine responds faster will have its results returned immediately.
-api_mode: "normal"
+api_mode: "merged"
 
 
 # ==============================

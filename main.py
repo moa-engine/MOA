@@ -89,7 +89,7 @@ async def search(
     safesearch: int = Query(configs["safesearch"], description="Safe search level"),
     country: str = Query(configs["country"], description="Country to search"),
     categories: str = Query(configs["default_category"], description="# The default category for which results are requested."),
-    api_mode: str = Query(configs["api_mode"], description="API behavior. stream or normal"),
+    api_mode: str = Query(configs["api_mode"], description="API behavior. stream, normal or merged"),
     ):
     # Send error if input query is missing
     if not q:
@@ -157,7 +157,14 @@ async def search(
             selected_pre_plugins=selected_pre_plugins,
             q=q,
             limit=limit,)
+
+        number_of_results = 0
+        for engine_data in results.values():
+            if isinstance(engine_data, dict) and "results" in engine_data and isinstance(engine_data["results"], list):
+                number_of_results += len(engine_data["results"])
+
         return {
+            "number_of_results" : number_of_results,
             "results": results,
             "pre_plugins": pre_plugin_outputs
             }
@@ -186,13 +193,15 @@ async def search(
             q=q,
             limit=limit,)
         results = results_merger(results)
+        number_of_results = len(results)
         return {
+            "number_of_results" : number_of_results,
             "results": results,
             "pre_plugins": pre_plugin_outputs
             }
 
     else:
-        return "api_mode should be normal or stream."
+        return "api_mode should be normal, stream or merged."
 
 # Mount static folder
 app.mount("/static", StaticFiles(directory="static"), name="static")
