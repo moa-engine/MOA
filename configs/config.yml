@@ -31,6 +31,8 @@ default_category: "general"
 # In normal mode, the results are sent all at once, but in stream mode, whichever engine responds faster will have its results returned immediately.
 api_mode: "merged"
 
+# Specifies the maximum length of the search query. The rest of the text is discarded. Default 1900 characters
+max_query_length: 1900
 
 # ==============================
 # Other settings

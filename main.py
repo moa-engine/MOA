@@ -83,7 +83,7 @@ async def search(
     engines: Optional[list[str]] = Query(configs["active_engines"], description="search engine names default = all"),
     enabled_plugins: Optional[list[str]] = Query(configs["active_plugins"], description="plugin names default = all"),
     time_range: Optional[str] = Query("", description="Time range filter"),
-    language: Optional[str] = Query(configs["language"], description="search language "),
+    language: Optional[str] = Query(configs["language"], description="search language"),
     limit: Optional[int] = Query(configs["limit"], description="Number of results per engine default all results"),
     pageno: int = Query(configs["pageno"], description="pageno number"),
     safesearch: int = Query(configs["safesearch"], description="Safe search level"),
@@ -95,6 +95,8 @@ async def search(
     if not q:
         raise HTTPException(status_code=400, detail="Search query input cannot be empty.")
 
+    # Limit search query length
+    q = q[:configs["max_query_length"]]
 
     categories = categories.lower() if categories else "general"
     if categories not in engine_status:
@@ -148,13 +150,14 @@ async def search(
 
     # Normal api mode takes all results from all engines. Then sends them all at once.
     if api_mode == "normal":
-        results, pre_plugin_outputs = normal_search(
+        results, pre_plugin_outputs, post_plugin_outputs = normal_search(
             max_threads=max_threads,
             selected_engines=selected_engines,
             loader=loader,
             logger=logger,
             search_params=search_params,
             selected_pre_plugins=selected_pre_plugins,
+            selected_post_plugins=selected_post_plugins,
             q=q,
             limit=limit,)
 
@@ -166,7 +169,8 @@ async def search(
         return {
             "number_of_results" : number_of_results,
             "results": results,
-            "pre_plugins": pre_plugin_outputs
+            "pre_plugins": pre_plugin_outputs,
+            "post_plugins": post_plugin_outputs
             }
 
 
@@ -183,13 +187,14 @@ async def search(
         )
 
     elif api_mode == "merged":
-        results, pre_plugin_outputs = normal_search(
+        results, pre_plugin_outputs, post_plugin_outputs = normal_search(
             max_threads=max_threads,
             selected_engines=selected_engines,
             loader=loader,
             logger=logger,
             search_params=search_params,
             selected_pre_plugins=selected_pre_plugins,
+            selected_post_plugins=selected_post_plugins,
             q=q,
             limit=limit,)
         results = results_merger(results)
@@ -197,7 +202,8 @@ async def search(
         return {
             "number_of_results" : number_of_results,
             "results": results,
-            "pre_plugins": pre_plugin_outputs
+            "pre_plugins": pre_plugin_outputs,
+            "post_plugins": post_plugin_outputs
             }
 
     else:

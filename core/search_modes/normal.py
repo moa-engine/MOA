@@ -8,6 +8,7 @@ def normal_search(
     logger,
     search_params,
     selected_pre_plugins,
+    selected_post_plugins,
     q,
     limit,
     ):
@@ -43,4 +44,15 @@ def normal_search(
                     results[name] = {"error": str(e)}
                 elif ftype == "pre_plugin":
                     pre_plugin_outputs[name] = {"error": str(e)}
-    return results, pre_plugin_outputs
+    post_plugin_outputs = {}
+    with ThreadPoolExecutor(max_threads) as executor:
+        post_futures = {
+            executor.submit(post_plugin.run, q, results): post_plugin.__class__.__name__
+            for post_plugin in selected_post_plugins
+        }
+
+        for future in post_futures:
+            output = future.result()
+            post_plugin_outputs[post_futures[future]] = output
+
+    return results, pre_plugin_outputs, post_plugin_outputs
