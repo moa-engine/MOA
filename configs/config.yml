@@ -13,7 +13,7 @@ active_plugins: null
 limit: null
 
 # Language filtering for engines is not supported in all engines.
-language: ""
+language: "en-US"
 
 # Search results page number
 pageno: 1
