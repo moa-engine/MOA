@@ -23,6 +23,8 @@ def normal_search(
                 logger.error("Engine %s not found!", engine_name)
                 continue
 
+            engine_instance.logger = logger
+
             futures[executor.submit(engine_instance.search, **search_params)] = ("engine", engine_name)
 
         for plugin in selected_pre_plugins:

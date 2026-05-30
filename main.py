@@ -79,7 +79,7 @@ app = FastAPI()
 @app.get("/search")
 
 async def search(
-    q: Optional[str] = Query(None, description="Search query"),
+    q: str = Query(..., max_length=configs["max_query_length"], description="Search query"),
     engines: Optional[list[str]] = Query(configs["active_engines"], description="search engine names default = all"),
     enabled_plugins: Optional[list[str]] = Query(configs["active_plugins"], description="plugin names default = all"),
     time_range: Optional[str] = Query("", description="Time range filter"),
@@ -91,9 +91,6 @@ async def search(
     categories: str = Query(configs["default_category"], description="# The default category for which results are requested."),
     api_mode: str = Query(configs["api_mode"], description="API behavior. stream, normal or merged"),
     ):
-    # Send error if input query is missing
-    if not q:
-        raise HTTPException(status_code=400, detail="Search query input cannot be empty.")
 
     # Limit search query length
     q = q[:configs["max_query_length"]]
