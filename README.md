@@ -2,6 +2,16 @@
   <img src="./static/MOAfull.png" alt="MOA" height="256px">
 </div>
 
+<div align="center">
+
+![License](https://img.shields.io/github/license/moa-engine/MOA?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.x-blue?style=for-the-badge&logo=python)
+![GitHub Stars](https://img.shields.io/github/stars/moa-engine/MOA?style=for-the-badge&logo=github)
+![GitHub Forks](https://img.shields.io/github/forks/moa-engine/MOA?style=for-the-badge&logo=github)
+![GitHub Issues](https://img.shields.io/github/issues/moa-engine/MOA?style=for-the-badge&logo=github)
+![Last Commit](https://img.shields.io/github/last-commit/moa-engine/MOA?style=for-the-badge&logo=github)
+
+</div>
 
 # MOA 🌐
 
